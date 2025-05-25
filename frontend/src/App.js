@@ -1,4 +1,4 @@
-// App.js - Versiune completă cu autentificare
+// App.js - Actualizat cu suport pentru Admin Dashboard
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
@@ -7,6 +7,7 @@ import axios from 'axios';
 import Login from './Login';
 import Register from './Register';
 import MembershipDashboard from './MembershipDashboard';
+import AdminDashboard from './components/AdminDashboard';
 import Home from './Home';
 import SubscriptionPurchase from './components/subscription/SubscriptionPurchase';
 import PaymentSuccess from './components/payment/PaymentSuccess';
@@ -33,10 +34,13 @@ const AuthProvider = ({ children }) => {
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           
           try {
-            const response = await axios.get('http://localhost:5000/api/user/profile');
+            const response = await axios.get('http://localhost:5000/api/auth/verify');
             if (response.data.success) {
               setIsAuthenticated(true);
-              setUser(JSON.parse(userData));
+              setUser({
+                ...response.data.user,
+                isAdmin: response.data.isAdmin || response.data.user.role === 'admin'
+              });
             } else {
               // Token invalid, șterge-l
               localStorage.removeItem('token');
@@ -66,7 +70,10 @@ const AuthProvider = ({ children }) => {
     localStorage.setItem('userData', JSON.stringify(userData));
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setIsAuthenticated(true);
-    setUser(userData);
+    setUser({
+      ...userData,
+      isAdmin: userData.isAdmin || userData.role === 'admin'
+    });
   };
 
   // Funcție de logout
@@ -118,9 +125,9 @@ const ProtectedRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-// Componenta pentru rutele publice (doar pentru utilizatorii neautentificați)
-const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+// Componenta pentru rutele de admin
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -131,7 +138,40 @@ const PublicRoute = ({ children }) => {
     );
   }
 
-  return !isAuthenticated ? children : <Navigate to="/dashboard" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!user?.isAdmin && user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
+// Componenta pentru rutele publice (doar pentru utilizatorii neautentificați)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Se verifică autentificarea...</p>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    // Redirecționează la dashboard-ul corespunzător în funcție de rol
+    if (user?.isAdmin || user?.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  return children;
 };
 
 // Componenta principală App
@@ -163,7 +203,14 @@ function App() {
               </PublicRoute>
             } />
             
-            {/* Rute protejate - doar pentru utilizatorii autentificați */}
+            {/* Rute protejate pentru admin */}
+            <Route path="/admin" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
+            
+            {/* Rute protejate pentru utilizatori normali */}
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <MembershipDashboard />
@@ -193,7 +240,7 @@ function App() {
 
 // Componenta pentru redirecționarea de pe pagina principală
 const RedirectRoute = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -204,7 +251,16 @@ const RedirectRoute = () => {
     );
   }
 
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+  if (isAuthenticated) {
+    // Redirecționează la dashboard-ul corespunzător în funcție de rol
+    if (user?.isAdmin || user?.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  return <Navigate to="/login" replace />;
 };
 
 export default App;

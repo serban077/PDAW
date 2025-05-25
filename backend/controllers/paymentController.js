@@ -1,4 +1,4 @@
-// controllers/paymentController.js
+// controllers/paymentController.js - FIXED VERSION
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_your_test_key');
 const { query } = require('../db');
 
@@ -15,11 +15,12 @@ exports.getStripeConfig = (req, res) => {
   }
 };
 
-// Obține planurile de abonament pentru pagina de plată
+// FIXED: Obține planurile de abonament pentru pagina de plată
 exports.getPlans = async (req, res) => {
   try {
+    // Use subscription_plans instead of subscription_plans
     const result = await query(
-      'SELECT * FROM subscription_plans WHERE active = true ORDER BY price ASC'
+      'SELECT * FROM subscription_plans WHERE active = 1 ORDER BY price ASC'
     );
     
     res.status(200).json({ 
@@ -45,9 +46,9 @@ exports.createPaymentIntent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'ID-ul planului este necesar' });
     }
 
-    // Obține detaliile planului
+    // FIXED: Use subscription_plans
     const planResult = await query(
-      'SELECT * FROM subscription_plans WHERE id = $1 AND active = true',
+      'SELECT * FROM subscription_plans WHERE id = ? AND active = 1',
       [planId]
     );
     
@@ -59,7 +60,7 @@ exports.createPaymentIntent = async (req, res) => {
 
     // Verifică dacă utilizatorul are deja un abonament activ
     const existingSubscription = await query(
-      'SELECT * FROM user_subscriptions WHERE user_id = $1 AND end_date > NOW() AND status = $2',
+      'SELECT * FROM user_subscriptions WHERE user_id = ? AND end_date > datetime(\'now\') AND status = ?',
       [userId, 'active']
     );
 
@@ -119,9 +120,9 @@ exports.confirmPayment = async (req, res) => {
 
     const planId = paymentIntent.metadata.plan_id;
     
-    // Obține detaliile planului
+    // FIXED: Use subscription_plans
     const planResult = await query(
-      'SELECT * FROM subscription_plans WHERE id = $1',
+      'SELECT * FROM subscription_plans WHERE id = ?',
       [planId]
     );
     
@@ -139,19 +140,18 @@ exports.confirmPayment = async (req, res) => {
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + plan.duration_days);
 
-    // Inserează abonamentul utilizatorului
+    // FIXED: Use plan_id instead of subscription_id
     const subscriptionResult = await query(`
       INSERT INTO user_subscriptions (user_id, plan_id, start_date, end_date, status)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id
-    `, [userId, planId, startDate, endDate, 'active']);
+      VALUES (?, ?, ?, ?, 'active')
+    `, [userId, planId, startDate.toISOString(), endDate.toISOString()]);
 
     const userSubscriptionId = subscriptionResult.rows[0].id;
 
     // Inserează înregistrarea plății
     await query(`
       INSERT INTO payments (user_id, subscription_id, amount, payment_method, payment_id, status)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES (?, ?, ?, ?, ?, ?)
     `, [
       userId,
       userSubscriptionId,
@@ -161,12 +161,12 @@ exports.confirmPayment = async (req, res) => {
       'completed'
     ]);
 
-    // Obține detaliile complete ale abonamentului pentru response
+    // FIXED: Obține detaliile complete ale abonamentului pentru response
     const newSubscriptionResult = await query(`
       SELECT us.*, sp.name as subscription_name, sp.features
       FROM user_subscriptions us
       JOIN subscription_plans sp ON us.plan_id = sp.id
-      WHERE us.id = $1
+      WHERE us.id = ?
     `, [userSubscriptionId]);
 
     res.status(200).json({
@@ -205,14 +205,14 @@ exports.handleWebhook = async (req, res) => {
       // Actualizează statusul abonamentului
       try {
         await query(
-          'UPDATE user_subscriptions SET status = $1, updated_at = NOW() WHERE id = $2',
+          'UPDATE user_subscriptions SET status = ?, updated_at = datetime(\'now\') WHERE id = ?',
           ['active', userSubscriptionId]
         );
         
         // Inserează înregistrarea plății
         await query(`
           INSERT INTO payments (user_id, subscription_id, amount, payment_method, payment_id, status)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          VALUES (?, ?, ?, ?, ?, ?)
         `, [
           session.metadata.user_id,
           userSubscriptionId,
@@ -236,8 +236,8 @@ exports.handleWebhook = async (req, res) => {
       try {
         await query(`
           UPDATE user_subscriptions 
-          SET status = $1, updated_at = NOW() 
-          WHERE plan_id = $2 AND user_id = $3 AND status = $4
+          SET status = ?, updated_at = datetime('now')
+          WHERE plan_id = ? AND user_id = ? AND status = ?
         `, ['failed', failedPaymentIntent.metadata.plan_id, failedPaymentIntent.metadata.user_id, 'pending']);
       } catch (err) {
         console.error('Eroare la actualizarea statutului plății eșuate:', err);
@@ -285,12 +285,13 @@ exports.getPaymentHistory = async (req, res) => {
   try {
     const userId = req.user.id;
     
+    // FIXED: Use subscription_plans and plan_id
     const result = await query(`
       SELECT p.*, sp.name as plan_name
       FROM payments p
       JOIN user_subscriptions us ON p.subscription_id = us.id
       JOIN subscription_plans sp ON us.plan_id = sp.id
-      WHERE p.user_id = $1
+      WHERE p.user_id = ?
       ORDER BY p.created_at DESC
     `, [userId]);
     

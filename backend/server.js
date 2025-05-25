@@ -20,29 +20,87 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: ["http://localhost:3000", "http://localhost:3001"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
   }
 });
 
 const PORT = process.env.PORT || 5000;
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
-// Rate limiting
+// Rate limiting - mai permisiv pentru dezvoltare
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Prea multe cereri de la această adresă IP'
+  max: 200, // crescut de la 100 la 200 requests per IP
+  message: {
+    success: false,
+    message: 'Prea multe cereri de la această adresă IP. Încercați din nou mai târziu.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip rate limiting for preflight requests
+  skip: (req) => req.method === 'OPTIONS'
 });
-app.use(limiter);
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
-  credentials: true
-}));
+// Rate limiting specific pentru auth (mai strict)
+const authLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minut în loc de 15
+  max: 100, 
+  message: {
+    success: false,
+    message: 'Prea multe încercări de autentificare. Încercați din nou în 15 minute.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip pentru OPTIONS requests
+  skip: (req) => req.method === 'OPTIONS'
+});
+
+// CORS configuration - mai detaliată
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('Blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'stripe-signature'
+  ],
+  optionsSuccessStatus: 200 // Pentru IE11
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
+// Apply general rate limiting
+app.use(limiter);
 
 // Body parsing middleware
 // Important: Pentru webhook-uri Stripe, avem nevoie de raw body
@@ -52,7 +110,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Origin: ${req.get('Origin')}`);
   next();
 });
 
@@ -90,8 +148,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
+// API Routes cu rate limiting specific pentru auth
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
@@ -100,6 +158,14 @@ app.use('/api/payment', paymentRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
+  
+  // CORS errors
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      success: false,
+      message: 'CORS policy violation'
+    });
+  }
   
   // Stripe webhook errors
   if (req.path === '/api/payment/webhook') {
@@ -111,6 +177,14 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ 
       success: false, 
       message: 'Date JSON invalide' 
+    });
+  }
+  
+  // Rate limiting errors
+  if (err.status === 429) {
+    return res.status(429).json({
+      success: false,
+      message: 'Prea multe cereri. Încercați din nou mai târziu.'
     });
   }
   
@@ -133,16 +207,15 @@ app.use('*', (req, res) => {
 // Initialize database and start server
 const startServer = async () => {
   try {
-    // Initialize database
-    //await initializeDatabase();
     console.log('Database initialized successfully');
     
     // Start server
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server is running on port ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
       console.log(`💳 Stripe mode: ${process.env.STRIPE_SECRET_KEY?.startsWith('sk_live') ? 'LIVE' : 'TEST'}`);
+      console.log('🌐 CORS enabled for localhost:3000 and localhost:3001');
     });
   } catch (error) {
     console.error('Failed to start server:', error);

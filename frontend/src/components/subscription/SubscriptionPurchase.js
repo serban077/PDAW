@@ -6,6 +6,23 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import '../../AuthForm.css';
 import './SubscriptionPurchase.css';
 
+const parseFeatures = (features) => {
+  if (!features) return [];
+  
+  try {
+    if (typeof features === 'string') {
+      return JSON.parse(features);
+    }
+    if (Array.isArray(features)) {
+      return features;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error parsing features:', error);
+    return [];
+  }
+};
+
 // Initialize Stripe with your publishable key
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || 'pk_test_your_test_key');
 
@@ -138,7 +155,7 @@ const CheckoutForm = ({ selectedPlan, onSuccess, onCancel }) => {
             <div className="plan-features-summary">
               <h4>Beneficii incluse:</h4>
               <ul>
-                {selectedPlan.features.map((feature, index) => (
+                {parseFeatures(selectedPlan.features).map((feature, index) => (
                   <li key={index}>{feature}</li>
                 ))}
               </ul>
@@ -406,7 +423,7 @@ const SubscriptionPurchase = () => {
                     )}
                     
                     <ul className="plan-features">
-                      {plan.features && plan.features.map((feature, index) => (
+                      {parseFeatures(plan.features).map((feature, index) => (
                         <li key={index}>✓ {feature}</li>
                       ))}
                     </ul>

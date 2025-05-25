@@ -4,6 +4,25 @@ import { AuthContext } from './App';
 import { useNavigate } from 'react-router-dom';
 import './MembershipDashboard.css';
 
+
+// Adaugă această funcție după importuri
+const parseFeatures = (features) => {
+  if (!features) return [];
+  
+  try {
+    if (typeof features === 'string') {
+      return JSON.parse(features);
+    }
+    if (Array.isArray(features)) {
+      return features;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error parsing features:', error);
+    return [];
+  }
+};
+
 // Icon components using inline SVG (same as your original file)
 const Icons = {
   User: () => (
@@ -127,6 +146,7 @@ const Dashboard = ({ subscriptions, loading, activeSubscription, handleRenewSubs
   const handleSubscribeNow = () => {
     navigate('/subscribe');
   };
+
 
   return (
     <div className="dashboard-content">
@@ -368,7 +388,7 @@ const Subscribe = ({ handlePurchaseSubscription, purchaseStatus }) => {
                 <p className="plan-description">{subscription.description}</p>
               )}
               <ul className="plan-features">
-                {subscription.features && subscription.features.map((feature, index) => (
+                {parseFeatures(subscription.features).map((feature, index) => (
                   <li key={index}>✓ {feature}</li>
                 ))}
               </ul>

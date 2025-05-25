@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './App';
+import apiClient from './utils/axios'; // importă axios-ul customizat
 import './AuthForm.css';
 
 const Login = () => {
@@ -28,7 +28,7 @@ const Login = () => {
     const newAttempts = attempts + 1;
     setAttempts(newAttempts);
     
-    if (newAttempts >= 3) {
+    if (newAttempts >= 5) { // crescut de la 3 la 5
       const cooldownTime = 60000; // 1 minut
       setCooldown({
         active: true,
@@ -75,11 +75,10 @@ const Login = () => {
     setMessage('');
 
     try {
-      // Folosește endpoint-ul de autentificare
-      const response = await axios.post('http://localhost:5000/api/auth/login', formData);
+      // Folosește apiClient în loc de axios direct
+      const response = await apiClient.post('/api/auth/login', formData);
 
       if (response.data.success || response.data.userId) {
-        // Pregătește datele utilizatorului
         const userData = {
           id: response.data.userId || response.data.user?.id,
           username: response.data.user?.username || formData.username,
@@ -89,17 +88,13 @@ const Login = () => {
           isAdmin: response.data.isAdmin || response.data.user?.isAdmin || false
         };
 
-        // Obține token-ul
         const token = response.data.token || response.data.accessToken;
 
         if (token) {
-          // Folosește funcția login din AuthContext
           login(token, userData);
-          
           resetCooldown();
           setMessage('Autentificare reușită! Vă redirecționăm...');
           
-          // Navigarea se va face automat prin AuthContext
           setTimeout(() => {
             navigate('/dashboard');
           }, 1000);
@@ -111,17 +106,29 @@ const Login = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      incrementAttempts();
       
-      let errorMessage = 'Eroare la autentificare';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
+      // Handle specific error types from interceptor
+      if (error.type === 'rate_limit') {
+        setCooldown({
+          active: true,
+          endTime: Date.now() + 60000 // 1 minut cooldown local
+        });
+        setMessage(error.message);
+      } else if (error.type === 'network') {
+        setMessage(error.message);
+      } else {
+        incrementAttempts();
+        
+        let errorMessage = 'Eroare la autentificare';
+        
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        setMessage(errorMessage);
       }
-      
-      setMessage(errorMessage);
     } finally {
       setLoading(false);
     }

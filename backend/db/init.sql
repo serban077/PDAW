@@ -25,9 +25,8 @@ CREATE TABLE bans (
     expires_at TIMESTAMP
 );
 
-ALTER TABLE users 
-ADD COLUMN has_2fa BOOLEAN DEFAULT FALSE,
-ADD COLUMN two_factor_secret VARCHAR(100),
-ADD COLUMN temp_two_factor_secret VARCHAR(100),
-ADD COLUMN two_factor_method VARCHAR(10),
-ADD COLUMN email VARCHAR(100);
+ALTER TABLE users ADD COLUMN has_2fa BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN two_factor_secret VARCHAR(100);
+ALTER TABLE users ADD COLUMN temp_two_factor_secret VARCHAR(100);
+ALTER TABLE users ADD COLUMN two_factor_method VARCHAR(10);
+ALTER TABLE users ADD COLUMN email VARCHAR(100);

@@ -1,10 +1,11 @@
-// controllers/subscriptionController.js
+// controllers/subscriptionController.js - FIXED VERSION
 const { query } = require('../db');
 
 // Obține toate planurile de abonament disponibile
 exports.getSubscriptionPlans = async (req, res) => {
     try {
-        const result = await query('SELECT * FROM subscriptions ORDER BY price ASC');
+        // FIXED: Use subscription_plans instead of subscriptions
+        const result = await query('SELECT * FROM subscription_plans WHERE active = 1 ORDER BY price ASC');
         
         res.status(200).json({
             success: true,
@@ -24,13 +25,14 @@ exports.checkActiveSubscription = async (req, res) => {
     try {
         const userId = req.user.id;
         
+        // FIXED: Use subscription_plans and correct column names
         const result = await query(`
-            SELECT us.*, s.name as subscription_name
+            SELECT us.*, sp.name as subscription_name, sp.price, sp.features
             FROM user_subscriptions us
-            JOIN subscriptions s ON us.subscription_id = s.id
+            JOIN subscription_plans sp ON us.plan_id = sp.id
             WHERE us.user_id = ? 
             AND us.end_date > datetime('now')
-            AND us.payment_status = 'completed'
+            AND us.status = 'active'
             ORDER BY us.end_date DESC
             LIMIT 1
         `, [userId]);
@@ -64,9 +66,9 @@ exports.purchaseSubscription = async (req, res) => {
             });
         }
         
-        // Obține detaliile abonamentului
+        // FIXED: Use subscription_plans
         const subscriptionResult = await query(
-            'SELECT * FROM subscriptions WHERE id = ?',
+            'SELECT * FROM subscription_plans WHERE id = ? AND active = 1',
             [subscription_id]
         );
         
@@ -79,16 +81,29 @@ exports.purchaseSubscription = async (req, res) => {
         
         const subscription = subscriptionResult.rows[0];
         
+        // Verifică dacă utilizatorul are deja un abonament activ
+        const existingResult = await query(`
+            SELECT * FROM user_subscriptions 
+            WHERE user_id = ? AND end_date > datetime('now') AND status = 'active'
+        `, [userId]);
+        
+        if (existingResult.rows.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Aveți deja un abonament activ'
+            });
+        }
+        
         // Calculează datele de început și sfârșit
         const startDate = new Date();
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + subscription.duration_days);
         
-        // Inserează abonamentul utilizatorului
+        // FIXED: Use plan_id instead of subscription_id
         const insertResult = await query(`
             INSERT INTO user_subscriptions 
-            (user_id, subscription_id, start_date, end_date, payment_status)
-            VALUES (?, ?, ?, ?, 'completed')
+            (user_id, plan_id, start_date, end_date, status)
+            VALUES (?, ?, ?, ?, 'active')
         `, [
             userId,
             subscription_id,
@@ -96,11 +111,11 @@ exports.purchaseSubscription = async (req, res) => {
             endDate.toISOString()
         ]);
         
-        // Obține abonamentul nou creat
+        // Obține abonamentul nou creat cu detalii complete
         const newSubscription = await query(`
-            SELECT us.*, s.name as subscription_name
+            SELECT us.*, sp.name as subscription_name, sp.price, sp.features
             FROM user_subscriptions us
-            JOIN subscriptions s ON us.subscription_id = s.id
+            JOIN subscription_plans sp ON us.plan_id = sp.id
             WHERE us.id = ?
         `, [insertResult.rows[0].id]);
         
@@ -123,10 +138,11 @@ exports.getUserSubscriptionHistory = async (req, res) => {
     try {
         const userId = req.user.id;
         
+        // FIXED: Use subscription_plans and plan_id
         const result = await query(`
-            SELECT us.*, s.name as subscription_name, s.price
+            SELECT us.*, sp.name as subscription_name, sp.price, sp.features
             FROM user_subscriptions us
-            JOIN subscriptions s ON us.subscription_id = s.id
+            JOIN subscription_plans sp ON us.plan_id = sp.id
             WHERE us.user_id = ?
             ORDER BY us.created_at DESC
         `, [userId]);
