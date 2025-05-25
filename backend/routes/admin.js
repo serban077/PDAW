@@ -1,3 +1,4 @@
+// routes/admin.js - Rute actualizate pentru admin
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
@@ -6,33 +7,43 @@ const authMiddleware = require('../middlewares/authMiddleware');
 // Middleware pentru verificarea rolului de admin
 const adminMiddleware = (req, res, next) => {
   if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Acces interzis' });
+    return res.status(403).json({ 
+      success: false,
+      message: 'Acces interzis. Doar administratorii pot accesa această resursă.' 
+    });
   }
   next();
 };
 
-// Toate rutele admin necesită autentificare și rol de admin
+// Aplică middleware-ul de autentificare și admin pentru toate rutele
 router.use(authMiddleware);
 router.use(adminMiddleware);
 
-// Rute pentru administrarea utilizatorilor
+// Dashboard și statistici
+router.get('/dashboard/stats', adminController.getDashboardStats);
+
+// Gestionarea utilizatorilor
 router.get('/users', adminController.getUsers);
-router.post('/ban-user', adminController.banUser);
-router.post('/unban-user', adminController.unbanUser || ((req, res) => {
-  res.status(501).json({ message: 'Funcționalitate neimplementată' });
-}));
+router.post('/users/:userId/ban', adminController.banUser);
+router.post('/users/:userId/unban', adminController.unbanUser);
 
-// Rute pentru administrarea abonamentelor
-router.get('/subscriptions', adminController.getSubscriptions || ((req, res) => {
-  res.status(501).json({ message: 'Funcționalitate neimplementată' });
-}));
-router.post('/add-subscription', adminController.addSubscription || ((req, res) => {
-  res.status(501).json({ message: 'Funcționalitate neimplementată' });
-}));
+// Gestionarea abonamentelor
+router.get('/subscriptions', adminController.getSubscriptions);
 
-// Rută de test (înlocuiește cu metoda ta reală sau elimină)
+// Gestionarea ban-urilor
+router.get('/bans', adminController.getBans);
+
+// Rută de test pentru verificarea accesului admin
 router.get('/test', (req, res) => {
-  res.status(200).json({ message: 'Rută admin funcțională' });
+  res.json({
+    success: true,
+    message: 'Acces admin confirmat',
+    user: {
+      id: req.user.id,
+      username: req.user.username,
+      role: req.user.role
+    }
+  });
 });
 
 module.exports = router;

@@ -1,12 +1,10 @@
-// controllers/authController.js - Adaptat pentru SQLite
-const bcrypt = require('bcryptjs'); // sau bcrypt
+// controllers/authController.js - Actualizat cu suport pentru admin
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../db');
 
-// Secret key for JWT
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-// Funcții helper pentru User (înlocuind modelul ORM)
 const UserHelper = {
   async findByUsername(username) {
     try {
@@ -34,12 +32,19 @@ const UserHelper = {
   async create(username, hashedPassword, email, firstName = '', lastName = '') {
     try {
       const result = await query(`
-        INSERT INTO users (username, password, email, first_name, last_name)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO users (username, password, email, first_name, last_name, role)
+        VALUES (?, ?, ?, ?, ?, 'user')
       `, [username, hashedPassword, email, firstName, lastName]);
       
       const userId = result.rows[0].id;
-      return { id: userId, username, email, first_name: firstName, last_name: lastName };
+      return { 
+        id: userId, 
+        username, 
+        email, 
+        first_name: firstName, 
+        last_name: lastName,
+        role: 'user'
+      };
     } catch (error) {
       console.error('Error creating user:', error);
       throw error;
@@ -47,14 +52,10 @@ const UserHelper = {
   }
 };
 
-// Înregistrare simplificată (fără 2FA pentru început)
 exports.register = async (req, res) => {
   try {
     const { username, password, email, first_name, last_name } = req.body;
 
-    console.log(`Register attempt: ${username}, Email: ${email}`);
-
-    // Validare input
     if (!username || !password || !email) {
       return res.status(400).json({ 
         success: false,
@@ -69,7 +70,6 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Verifică dacă utilizatorul există deja
     const existingUser = await UserHelper.findByUsername(username);
     if (existingUser) {
       return res.status(400).json({ 
@@ -78,23 +78,17 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Creează utilizatorul
     const user = await UserHelper.create(username, hashedPassword, email, first_name, last_name);
-    console.log(`User created: ID ${user.id}`);
 
-    // Generează token JWT
     const token = jwt.sign(
-      { id: user.id },
+      { id: user.id, role: user.role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    console.log(`Registration complete for user ${user.id}`);
-    
     return res.status(201).json({
       success: true,
       message: 'Utilizator creat cu succes!',
@@ -104,9 +98,11 @@ exports.register = async (req, res) => {
         username: user.username,
         email: user.email,
         first_name: user.first_name,
-        last_name: user.last_name
+        last_name: user.last_name,
+        role: user.role
       },
-      userId: user.id
+      userId: user.id,
+      isAdmin: user.role === 'admin'
     });
 
   } catch (error) {
@@ -118,13 +114,10 @@ exports.register = async (req, res) => {
   }
 };
 
-// Login simplificat (fără 2FA pentru început)
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log(`Login attempt: ${username}`);
 
-    // Validare input
     if (!username || !password) {
       return res.status(400).json({
         success: false,
@@ -132,36 +125,37 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Găsește utilizatorul
     const user = await UserHelper.findByUsername(username);
 
     if (!user) {
-      console.log(`Login failed: User ${username} not found`);
       return res.status(401).json({ 
         success: false,
         message: 'Credențiale invalide' 
       });
     }
 
-    // Verifică parola
+    // Verifică dacă utilizatorul este banat
+    if (user.role === 'banned') {
+      return res.status(403).json({
+        success: false,
+        message: 'Contul dvs. a fost suspendat. Contactați administratorul.'
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log(`Login failed: Invalid password for ${username}`);
       return res.status(401).json({ 
         success: false,
         message: 'Credențiale invalide' 
       });
     }
 
-    // Generează token JWT
     const token = jwt.sign(
-      { id: user.id },
+      { id: user.id, role: user.role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    console.log(`Login successful for user ${user.id}`);
-    
     return res.status(200).json({
       success: true,
       message: 'Autentificare cu succes!',
@@ -171,10 +165,11 @@ exports.login = async (req, res) => {
         username: user.username,
         email: user.email,
         first_name: user.first_name,
-        last_name: user.last_name
+        last_name: user.last_name,
+        role: user.role
       },
       userId: user.id,
-      isAdmin: false // Poți adăuga logica pentru admin aici
+      isAdmin: user.role === 'admin'
     });
 
   } catch (error) {
@@ -186,7 +181,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// Verificare token (pentru middleware)
 exports.verifyToken = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -207,8 +201,10 @@ exports.verifyToken = async (req, res) => {
         username: user.username,
         email: user.email,
         first_name: user.first_name,
-        last_name: user.last_name
-      }
+        last_name: user.last_name,
+        role: user.role
+      },
+      isAdmin: user.role === 'admin'
     });
 
   } catch (error) {
@@ -220,7 +216,6 @@ exports.verifyToken = async (req, res) => {
   }
 };
 
-// Logout (simplu)
 exports.logout = async (req, res) => {
   res.status(200).json({
     success: true,
@@ -228,7 +223,6 @@ exports.logout = async (req, res) => {
   });
 };
 
-// Validare token (pentru frontend)
 exports.validateToken = async (req, res) => {
   return res.status(200).json({
     success: true,
@@ -236,7 +230,9 @@ exports.validateToken = async (req, res) => {
     user: {
       id: req.user.id,
       username: req.user.username,
-      email: req.user.email
-    }
+      email: req.user.email,
+      role: req.user.role
+    },
+    isAdmin: req.user.role === 'admin'
   });
 };

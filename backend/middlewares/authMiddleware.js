@@ -1,4 +1,4 @@
-// middlewares/authMiddleware.js
+// middlewares/authMiddleware.js - Actualizat cu suport pentru roluri
 const jwt = require('jsonwebtoken');
 const { query } = require('../db');
 
@@ -17,7 +17,7 @@ const authMiddleware = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
 
         const result = await query(
-            'SELECT id, username, email, first_name, last_name FROM users WHERE id = ?',
+            'SELECT id, username, email, first_name, last_name, role FROM users WHERE id = ?',
             [decoded.id]
         );
 
@@ -28,7 +28,17 @@ const authMiddleware = async (req, res, next) => {
             });
         }
 
-        req.user = result.rows[0];
+        const user = result.rows[0];
+
+        // Verifică dacă utilizatorul este banat
+        if (user.role === 'banned') {
+            return res.status(403).json({
+                success: false,
+                message: 'Contul dvs. a fost suspendat. Contactați administratorul.'
+            });
+        }
+
+        req.user = user;
         next();
 
     } catch (error) {
