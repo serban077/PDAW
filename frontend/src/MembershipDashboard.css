@@ -1,0 +1,598 @@
+/* MembershipDashboard.css */
+
+:root {
+  --primary: #2A9D8F;
+  --secondary: #264653;
+  --accent: #E9C46A;
+  --danger: #E76F51;
+  --success: #2A9D8F;
+  --text-dark: #264653;
+  --text-light: #F4F4F4;
+  --bg-gradient: linear-gradient(135deg, #2A9D8F 0%, #264653 100%);
+  --light-gray: #f0f2f5;
+  --border-color: #e0e0e0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+}
+
+body {
+  background: var(--bg-gradient);
+  min-height: 100vh;
+  color: var(--text-dark);
+}
+
+.dashboard-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: rgba(255,255,255,0.95);
+  border-radius: 15px;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.user-greeting {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--secondary);
+}
+
+.user-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Dashboard Tabs */
+.dashboard-tabs {
+  display: flex;
+  margin-bottom: 2rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  padding: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.tab-button {
+  flex: 1;
+  padding: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-button svg {
+  margin-right: 0.5rem;
+}
+
+.tab-button.active {
+  background-color: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  color: var(--primary);
+}
+
+.tab-button:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Dashboard Content Section */
+.dashboard-content {
+  margin-bottom: 4rem;
+}
+
+/* Subscription banner */
+.active-subscription-banner {
+  background: linear-gradient(135deg, #dcf8ef 0%, #eaf6f8 100%);
+  padding: 1.5rem;
+  border-radius: 15px;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  border-left: 5px solid var(--success);
+}
+
+.subscription-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-icon {
+  font-size: 2.2rem;
+  margin-right: 1.5rem;
+  color: var(--success);
+}
+
+.status-details h3 {
+  color: var(--success);
+  margin-bottom: 0.5rem;
+}
+
+.status-details p {
+  color: var(--text-dark);
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.detail-value.highlight {
+  color: var(--success);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Feature cards */
+.subscription-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.plan-card {
+  background: rgba(255,255,255,0.95);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.plan-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--primary);
+}
+
+.plan-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+}
+
+.plan-card.selected {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  border: 2px solid var(--primary);
+}
+
+.plan-card.selected::before {
+  height: 6px;
+}
+
+.plan-price {
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--secondary);
+  margin: 1rem 0;
+  position: relative;
+  display: inline-block;
+}
+
+.plan-price::after {
+  content: '/lună';
+  font-size: 1rem;
+  color: var(--text-dark);
+  position: absolute;
+  right: -50px;
+  bottom: 12px;
+}
+
+.plan-features {
+  list-style: none;
+  margin: 2rem 0;
+}
+
+.plan-features li {
+  padding: 0.8rem 0;
+  color: var(--text-dark);
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  text-align: left;
+  padding-left: 1.5rem;
+  position: relative;
+}
+
+.plan-features li:before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--primary);
+  font-weight: bold;
+}
+
+.plan-features li:last-child {
+  border-bottom: none;
+}
+
+.fitness-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--primary);
+}
+
+/* History container */
+.subscriptions-history-container {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  margin-bottom: 2rem;
+}
+
+.subscriptions-history-container h2 {
+  margin-bottom: 1.5rem;
+  color: var(--secondary);
+  text-align: center;
+}
+
+/* Stats container */
+.stats-container {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  margin-bottom: 2rem;
+}
+
+.stats-container h2, .stats-container h3 {
+  margin-bottom: 1.5rem;
+  color: var(--secondary);
+}
+
+/* Info box */
+.info-box {
+  background-color: #f8f9fa;
+  border-left: 4px solid var(--primary);
+  padding: 1rem;
+  margin: 1.5rem 0;
+  border-radius: 0 10px 10px 0;
+}
+
+.info-box h4 {
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+}
+
+.info-box p {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* QR container */
+.qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 2rem 0;
+}
+
+.qr-code {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.secret-key {
+  background-color: #f5f5f5;
+  padding: 1rem;
+  border-radius: 10px;
+  font-family: monospace;
+  font-size: 1.2rem;
+  letter-spacing: 0.2rem;
+  text-align: center;
+  user-select: all;
+  margin-top: 1rem;
+}
+
+/* Switch */
+.switch-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+  margin-right: 10px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--primary);
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px var(--primary);
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+/* Status message */
+.status-message {
+  padding: 1rem;
+  margin: 1.5rem 0;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 500;
+  position: relative;
+}
+
+.status-message.success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-message.error {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.close-message {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.close-message:hover {
+  opacity: 1;
+}
+
+/* Loading animations */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(0,0,0,0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 10px;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Auth button styles */
+.auth-button {
+  width: 100%;
+  padding: 1rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.auth-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255,255,255,0.3),
+    transparent
+  );
+  transition: 0.5s;
+}
+
+.auth-button:hover::before {
+  left: 100%;
+}
+
+.auth-button:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+.auth-button.danger {
+  background: var(--danger);
+}
+
+.auth-button.secondary {
+  background: #e0e0e0;
+  color: var(--text-dark);
+}
+
+.auth-button.selected {
+  background: var(--secondary);
+}
+
+/* Purchase container */
+.purchase-container {
+  margin-top: 2rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.purchase-button {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Error container */
+.error-container {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.error-message {
+  color: var(--danger);
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+/* Subscription progress */
+.subscription-progress {
+  margin-top: 1.5rem;
+  width: 100%;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-dark);
+}
+
+.progress-bar {
+  height: 10px;
+  background-color: rgba(0,0,0,0.1);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--success);
+  transition: width 0.5s ease;
+}
+
+/* No subscriptions */
+.no-subscriptions {
+  text-align: center;
+  padding: 3rem 0;
+  color: var(--text-dark);
+  grid-column: 1 / -1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+  
+  .dashboard-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .user-controls {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .dashboard-tabs {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .subscription-status {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .status-icon {
+    margin-right: 0;
+    margin-bottom: 1rem;
+  }
+  
+  .plan-price::after {
+    position: static;
+    display: block;
+    margin-top: 0.5rem;
+  }
+}
+
+/* Loading screen */
+.loading-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--bg-gradient);
+  color: white;
+  font-size: 1.5rem;
+}
