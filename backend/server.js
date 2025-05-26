@@ -12,6 +12,7 @@ const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 const subscriptionRoutes = require('./routes/subscriptions');
 const paymentRoutes = require('./routes/payment');
+const gymRoutes = require('./routes/gym'); // NOU - ruta pentru gym
 
 // Import database initialization
 const { initializeDatabase } = require('./db');
@@ -154,6 +155,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/gym', gymRoutes); // NOU - ruta pentru gym
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -207,6 +209,8 @@ app.use('*', (req, res) => {
 // Initialize database and start server
 const startServer = async () => {
   try {
+    // Initialize the database
+    await initializeDatabase();
     console.log('Database initialized successfully');
     
     // Start server
@@ -216,6 +220,7 @@ const startServer = async () => {
       console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
       console.log(`💳 Stripe mode: ${process.env.STRIPE_SECRET_KEY?.startsWith('sk_live') ? 'LIVE' : 'TEST'}`);
       console.log('🌐 CORS enabled for localhost:3000 and localhost:3001');
+      console.log('🏋️ Gym entry system ready!'); // NOU
     });
   } catch (error) {
     console.error('Failed to start server:', error);

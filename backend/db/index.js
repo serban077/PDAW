@@ -1,4 +1,4 @@
-// db/index.js
+// db/index.js - Versiune reparată
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
@@ -64,20 +64,23 @@ const initializeDatabase = async () => {
                 password TEXT NOT NULL,
                 first_name TEXT,
                 last_name TEXT,
+                role TEXT DEFAULT 'user',
                 has2FA INTEGER DEFAULT 0,
                 twofa_secret TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
+        // Folosește subscription_plans în loc de subscriptions
         await query(`
-            CREATE TABLE IF NOT EXISTS subscriptions (
+            CREATE TABLE IF NOT EXISTS subscription_plans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
-                price DECIMAL(10,2) NOT NULL,
-                duration_days INTEGER NOT NULL,
                 description TEXT,
+                price DECIMAL(10,2) NOT NULL,
+                duration_days INTEGER NOT NULL DEFAULT 30,
                 features TEXT,
+                active BOOLEAN DEFAULT 1,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         `);
@@ -86,25 +89,74 @@ const initializeDatabase = async () => {
             CREATE TABLE IF NOT EXISTS user_subscriptions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
-                subscription_id INTEGER NOT NULL,
+                plan_id INTEGER NOT NULL,
                 start_date DATETIME NOT NULL,
                 end_date DATETIME NOT NULL,
-                payment_status TEXT DEFAULT 'pending',
+                status TEXT DEFAULT 'pending',
+                payment_id TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (subscription_id) REFERENCES subscriptions(id)
+                FOREIGN KEY (plan_id) REFERENCES subscription_plans(id)
             )
         `);
 
-        // Inserează niște abonamente de test dacă nu există
-        const existingPlans = await query('SELECT COUNT(*) as count FROM subscriptions');
+        // Tabelele pentru gym
+        await query(`
+            CREATE TABLE IF NOT EXISTS gym_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                entry_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                exit_time DATETIME NULL,
+                entry_method TEXT DEFAULT 'qr_scan',
+                status TEXT DEFAULT 'active',
+                location TEXT DEFAULT 'main_gym',
+                notes TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS user_qr_codes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL UNIQUE,
+                qr_code TEXT NOT NULL UNIQUE,
+                expires_at DATETIME NULL,
+                is_active BOOLEAN DEFAULT 1,
+                generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_used DATETIME NULL,
+                usage_count INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS user_stats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL UNIQUE,
+                total_entries INTEGER DEFAULT 0,
+                current_month_entries INTEGER DEFAULT 0,
+                average_duration INTEGER DEFAULT 0,
+                longest_session INTEGER DEFAULT 0,
+                favorite_time_slot TEXT DEFAULT 'morning',
+                last_entry DATETIME NULL,
+                streak_days INTEGER DEFAULT 0,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        // Inserează planurile de abonament dacă nu există
+        const existingPlans = await query('SELECT COUNT(*) as count FROM subscription_plans');
         if (existingPlans.rows[0].count === 0) {
             await query(`
-                INSERT INTO subscriptions (name, price, duration_days, description, features)
+                INSERT INTO subscription_plans (name, description, price, duration_days, features, active)
                 VALUES 
-                ('Basic', 99.99, 30, 'Abonament de bază pentru începători', '["Acces la sală", "Program de bază"]'),
-                ('Premium', 199.99, 30, 'Abonament premium cu beneficii extra', '["Acces la sală", "Antrenor personal", "Program avansat"]'),
-                ('VIP', 299.99, 30, 'Abonament VIP cu toate beneficiile', '["Acces la sală", "Antrenor personal", "Masaj", "Nutriție"]')
+                ('BASIC', 'Abonament de bază pentru începători', 150.00, 30, '["Acces la sală 3 zile/săptămână", "Orar limitat (8:00 - 16:00)", "Acces la echipamentele de bază", "Fără antrenor personal"]', 1),
+                ('PREMIUM', 'Abonament premium cu beneficii extra', 250.00, 30, '["Acces la sală 5 zile/săptămână", "Orar complet", "Acces la toate echipamentele", "1 ședință/lună cu antrenor"]', 1),
+                ('FULL', 'Abonament VIP cu toate beneficiile', 350.00, 30, '["Acces nelimitat la sală", "Orar complet + weekend", "Acces la toate facilitățile", "3 ședințe/lună cu antrenor", "Plan personalizat de antrenament"]', 1)
             `);
             console.log('Inserted default subscription plans');
         }
