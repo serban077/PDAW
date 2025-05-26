@@ -46,4 +46,10 @@ router.get('/test', (req, res) => {
   });
 });
 
+router.get('/plans', adminController.getPlans);
+router.post('/plans', adminController.createPlan);
+router.put('/plans/:planId', adminController.updatePlan);
+router.delete('/plans/:planId', adminController.deletePlan);
+router.post('/users/:userId/change-subscription', adminController.changeUserSubscription);
+
 module.exports = router;

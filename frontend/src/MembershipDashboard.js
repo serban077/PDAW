@@ -4,7 +4,6 @@ import { AuthContext } from './App';
 import { useNavigate } from 'react-router-dom';
 import './MembershipDashboard.css';
 
-
 // Adaugă această funcție după importuri
 const parseFeatures = (features) => {
   if (!features) return [];
@@ -112,9 +111,26 @@ const Icons = {
   )
 };
 
-// Define tab components
-const Dashboard = ({ subscriptions, loading, activeSubscription, handleRenewSubscription }) => {
+// Animation hook that needs to be passed activeTab as a dependency
+const useAnimations = (activeTab) => {
+  useEffect(() => {
+    const cards = document.querySelectorAll('.plan-card');
+    cards.forEach((card, index) => {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(30px)';
+      
+      setTimeout(() => {
+        card.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+      }, index * 200);
+    });
+  }, [activeTab]);
+};
+
+const Dashboard = ({ subscriptions, loading, activeSubscription, handleRenewSubscription, setActiveTab }) => {
   const navigate = useNavigate();
+  useAnimations('dashboard'); // Pass a static value since this is the dashboard tab
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('ro-RO', {
@@ -147,10 +163,33 @@ const Dashboard = ({ subscriptions, loading, activeSubscription, handleRenewSubs
     navigate('/subscribe');
   };
 
+  // Funcții pentru cardurile interactive
+  const handleWorkoutEvolution = () => {
+    // Simulează click pe tab-ul istoric pentru a vedea evoluția
+    setActiveTab('history');
+  };
+
+  const handleInvoices = () => {
+    // În viitor se poate conecta la un sistem de facturi
+    console.log('Deschide facturi și plăți');
+  };
+
+  const handleStatistics = () => {
+    // Simulează afișarea unor statistici
+    console.log('Deschide statistici detaliate');
+  };
+
+  const getProgressColor = (days) => {
+    if (days > 20) return '#10b981'; // Verde
+    if (days > 10) return '#f59e0b'; // Galben
+    return '#ef4444'; // Roșu
+  };
+
+  const remainingDays = getRemainingDays(activeSubscription?.end_date);
 
   return (
     <div className="dashboard-content">
-      {/* Subscription Card */}
+      {/* Subscription Card cu animații îmbunătățite */}
       <div className="active-subscription-banner">
         <div className="subscription-status">
           <div className="status-icon">
@@ -164,20 +203,22 @@ const Dashboard = ({ subscriptions, loading, activeSubscription, handleRenewSubs
               </div>
             ) : activeSubscription ? (
               <>
-                <h3>Abonament Activ</h3>
-                <p>Valabil până pe: {formatDate(activeSubscription.end_date)}</p>
-                <p className="detail-value highlight">
+                <h3>🎉 Abonament Activ</h3>
+                <p>Valabil până pe: <strong>{formatDate(activeSubscription.end_date)}</strong></p>
+                <div className="detail-value highlight">
                   {activeSubscription.subscription_name || getSubscriptionName(activeSubscription.name)}
-                </p>
+                </div>
                 <div className="subscription-progress">
                   <div className="progress-label">
-                    <span>Zile rămase: {getRemainingDays(activeSubscription.end_date)}</span>
+                    <span>⏰ Zile rămase: <strong>{remainingDays}</strong></span>
+                    <span>{remainingDays > 15 ? '✨ Excelent' : remainingDays > 5 ? '⚠️ Atenție' : '🚨 Urgent'}</span>
                   </div>
                   <div className="progress-bar">
                     <div 
                       className="progress-fill" 
                       style={{ 
-                        width: `${Math.min((getRemainingDays(activeSubscription.end_date) / 30) * 100, 100)}%`
+                        width: `${Math.min((remainingDays / 30) * 100, 100)}%`,
+                        background: `linear-gradient(90deg, ${getProgressColor(remainingDays)}, ${getProgressColor(remainingDays)}dd)`
                       }}
                     ></div>
                   </div>
@@ -187,19 +228,19 @@ const Dashboard = ({ subscriptions, loading, activeSubscription, handleRenewSubs
                   style={{ marginTop: '1rem' }}
                   onClick={handleRenewSubscription}
                 >
-                  Reînnoiește Abonamentul
+                  🔄 Reînnoiește Abonamentul
                 </button>
               </>
             ) : (
               <>
-                <h3>Nu ai un abonament activ</h3>
+                <h3>🏋️ Nu ai un abonament activ</h3>
                 <p>Alege unul dintre abonamentele disponibile pentru a accesa facilitățile sălii.</p>
                 <button 
                   className="auth-button" 
                   style={{ marginTop: '1rem' }}
                   onClick={handleSubscribeNow}
                 >
-                  Abonează-te Acum
+                  ⚡ Abonează-te Acum
                 </button>
               </>
             )}
@@ -207,63 +248,81 @@ const Dashboard = ({ subscriptions, loading, activeSubscription, handleRenewSubs
         </div>
       </div>
 
-      {/* Feature Cards */}
+      {/* Feature Cards interactive și animate */}
       <div className="subscription-plans">
-        <div className="plan-card">
-          <div className="fitness-icon">
-            <Icons.WorkoutIcon />
-          </div>
-          <h3>Evoluție Antrenamente</h3>
-          <p>Vezi progresul tău și statistici de antrenament.</p>
+        <div className="plan-card interactive-card" onClick={handleWorkoutEvolution}>
+        <div className="fitness-icon">
+          <Icons.WorkoutIcon />
         </div>
+        <h3>💪 Evoluție Antrenamente</h3>
+        <p>Vezi progresul tău și statistici de antrenament.</p>
+        <div className="card-stats">
+          <span className="stat-number">12</span>
+          <span className="stat-label">Antrenamente</span>
+        </div>
+      </div>
         
-        <div className="plan-card">
+        <div className="plan-card interactive-card" onClick={handleInvoices}>
           <div className="fitness-icon">
             <Icons.CreditCard />
           </div>
-          <h3>Facturi & Plăți</h3>
+          <h3>💳 Facturi & Plăți</h3>
           <p>Accesează istoricul plăților și facturile tale.</p>
+          <div className="card-stats">
+            <span className="stat-number">3</span>
+            <span className="stat-label">Facturi</span>
+          </div>
         </div>
         
-        <div className="plan-card">
+        <div className="plan-card interactive-card" onClick={handleStatistics}>
           <div className="fitness-icon">
             <Icons.BarChart2 />
           </div>
-          <h3>Statistici Detaliate</h3>
+          <h3>📊 Statistici Detaliate</h3>
           <p>Analizează performanța ta cu grafice avansate.</p>
+          <div className="card-stats">
+            <span className="stat-number">85%</span>
+            <span className="stat-label">Progres</span>
+          </div>
         </div>
       </div>
 
-      {/* Featured Article */}
+      {/* Featured Article cu design îmbunătățit */}
       <div className="subscriptions-history-container">
-        <h2>Articol Recomandat</h2>
-        <div style={{ 
-          position: 'relative',
-          borderRadius: '15px',
-          overflow: 'hidden',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-        }}>
-          <img 
-            src="/api/placeholder/800/400" 
-            alt="Sfaturi pentru Refacerea După Antrenament" 
-            style={{ width: '100%', height: '250px', objectFit: 'cover' }}
-          />
-          <div style={{ 
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: '2rem',
-            background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
-            color: 'white'
-          }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-              Sfaturi pentru Refacerea După Antrenament
-            </h3>
-            <button className="auth-button">
-              Citește Articolul
-            </button>
+        <h2>📰 Articol Recomandat</h2>
+        <div className="article-card">
+          <div className="article-image">
+            <div className="article-overlay">
+              <h3>🧘 Sfaturi pentru Refacerea După Antrenament</h3>
+              <p>Descoperă cele mai eficiente metode pentru recuperarea musculară și îmbunătățirea performanței.</p>
+              <button className="auth-button">
+                📖 Citește Articolul
+              </button>
+            </div>
           </div>
+          <div className="article-meta">
+            <span className="reading-time">⏱️ 5 min citire</span>
+            <span className="article-category">💪 Recuperare</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="quick-actions">
+        <h3>⚡ Acțiuni Rapide</h3>
+        <div className="actions-grid">
+          <button className="quick-action-btn" onClick={() => navigate('/subscribe')}>
+            <Icons.CreditCard />
+            <span>Schimbă Planul</span>
+          </button>
+          <button className="quick-action-btn" onClick={() => setActiveTab('history')}>
+            <Icons.Calendar />
+            <span>Vezi Istoricul</span>
+          </button>
+          <button className="quick-action-btn" onClick={() => setActiveTab('security')}>
+            <Icons.Settings />
+            <span>Setări</span>
+          </button>
         </div>
       </div>
     </div>
@@ -899,6 +958,7 @@ const MembershipDashboard = () => {
             loading={loading}
             activeSubscription={activeSubscription}
             handleRenewSubscription={handleRenewSubscription}
+            setActiveTab={setActiveTab}
           />
         );
       case 'subscribe':
@@ -919,6 +979,7 @@ const MembershipDashboard = () => {
             loading={loading}
             activeSubscription={activeSubscription}
             handleRenewSubscription={handleRenewSubscription}
+            setActiveTab={setActiveTab}
           />
         );
     }

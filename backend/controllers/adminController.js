@@ -441,11 +441,206 @@ const getBans = async (req, res) => {
   }
 };
 
+// Adaugă aceste funcții noi ÎNAINTE de module.exports
+
+// Get all subscription plans for admin management
+const getPlans = async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT * FROM subscription_plans 
+      ORDER BY created_at DESC
+    `);
+    
+    res.json({
+      success: true,
+      plans: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching plans:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Eroare la obținerea planurilor'
+    });
+  }
+};
+
+// Create new subscription plan
+const createPlan = async (req, res) => {
+  try {
+    const { name, description, price, duration_days, features, active } = req.body;
+    
+    if (!name || !price || !duration_days) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numele, prețul și durata sunt obligatorii'
+      });
+    }
+    
+    const featuresJson = JSON.stringify(features || []);
+    
+    const result = await query(`
+      INSERT INTO subscription_plans (name, description, price, duration_days, features, active)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [name, description, price, duration_days, featuresJson, active !== false]);
+    
+    res.json({
+      success: true,
+      message: 'Planul a fost creat cu succes',
+      planId: result.rows[0].id
+    });
+  } catch (error) {
+    console.error('Error creating plan:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Eroare la crearea planului'
+    });
+  }
+};
+
+// Update subscription plan
+const updatePlan = async (req, res) => {
+  try {
+    const { planId } = req.params;
+    const { name, description, price, duration_days, features, active } = req.body;
+    
+    if (!name || !price || !duration_days) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numele, prețul și durata sunt obligatorii'
+      });
+    }
+    
+    const featuresJson = JSON.stringify(features || []);
+    
+    await query(`
+      UPDATE subscription_plans 
+      SET name = ?, description = ?, price = ?, duration_days = ?, features = ?, active = ?
+      WHERE id = ?
+    `, [name, description, price, duration_days, featuresJson, active !== false, planId]);
+    
+    res.json({
+      success: true,
+      message: 'Planul a fost actualizat cu succes'
+    });
+  } catch (error) {
+    console.error('Error updating plan:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Eroare la actualizarea planului'
+    });
+  }
+};
+
+// Delete subscription plan
+const deletePlan = async (req, res) => {
+  try {
+    const { planId } = req.params;
+    
+    // Check if plan has active subscriptions
+    const activeSubsResult = await query(`
+      SELECT COUNT(*) as count 
+      FROM user_subscriptions 
+      WHERE plan_id = ? AND status = 'active' AND end_date > datetime('now')
+    `, [planId]);
+    
+    if (activeSubsResult.rows[0].count > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nu se poate șterge planul deoarece există abonamente active pentru acest plan'
+      });
+    }
+    
+    await query('DELETE FROM subscription_plans WHERE id = ?', [planId]);
+    
+    res.json({
+      success: true,
+      message: 'Planul a fost șters cu succes'
+    });
+  } catch (error) {
+    console.error('Error deleting plan:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Eroare la ștergerea planului'
+    });
+  }
+};
+
+// Change user subscription
+const changeUserSubscription = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { planId } = req.body;
+    
+    if (!planId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID-ul planului este obligatoriu'
+      });
+    }
+    
+    // Get plan details
+    const planResult = await query('SELECT * FROM subscription_plans WHERE id = ?', [planId]);
+    
+    if (planResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Planul nu a fost găsit'
+      });
+    }
+    
+    const plan = planResult.rows[0];
+    
+    await query('BEGIN TRANSACTION');
+    
+    try {
+      // Cancel existing active subscriptions
+      await query(`
+        UPDATE user_subscriptions 
+        SET status = 'cancelled' 
+        WHERE user_id = ? AND status = 'active' AND end_date > datetime('now')
+      `, [userId]);
+      
+      // Create new subscription
+      const startDate = new Date().toISOString();
+      const endDate = new Date(Date.now() + plan.duration_days * 24 * 60 * 60 * 1000).toISOString();
+      
+      await query(`
+        INSERT INTO user_subscriptions (user_id, plan_id, start_date, end_date, status)
+        VALUES (?, ?, ?, ?, 'active')
+      `, [userId, planId, startDate, endDate]);
+      
+      await query('COMMIT');
+      
+      res.json({
+        success: true,
+        message: 'Abonamentul utilizatorului a fost schimbat cu succes'
+      });
+      
+    } catch (error) {
+      await query('ROLLBACK');
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('Error changing user subscription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Eroare la schimbarea abonamentului'
+    });
+  }
+};
+
+// ACUM ÎNLOCUIEȘTE module.exports cu:
 module.exports = { 
   getUsers, 
   banUser, 
   unbanUser, 
   getSubscriptions, 
   getDashboardStats,
-  getBans
+  getBans,
+  getPlans,
+  createPlan,
+  updatePlan,
+  deletePlan,
+  changeUserSubscription
 };
